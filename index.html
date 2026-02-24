@@ -330,17 +330,15 @@
         // 4. Robust PDF Generation
         async function savePDF() {
             const btn = document.getElementById('save-btn');
-            const location = document.getElementById('location').value;
             const terms = document.getElementById('terms').checked;
 
-            if (!location) return alert("Please select collection location");
             if (!terms) return alert("Please agree to terms");
 
             btn.innerText = "Processing...";
             btn.disabled = true;
 
             // Step A: Replace problematic input elements with plain text
-            const inputs = ['date', 'time', 'location', 'clientName', 'clientPhone', 'clientEmail'];
+            const inputs = ['date', 'time', 'clientName', 'clientPhone', 'clientEmail'];
             inputs.forEach(id => {
                 const el = document.getElementById(id);
                 const valEl = document.getElementById('val-' + id);
@@ -393,4 +391,5 @@
         }
     </script>
 </body>
+
 </html>
