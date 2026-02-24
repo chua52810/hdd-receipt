@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>HDD Receipt - SG Data Recovery</title>
+    <style>
+         /* This targets all inputs inside a div with the class 'disabled' */
+         #company-fields.disabled {
+             opacity: 0.6;             /* Makes the entire section look faded */
+             pointer-events: none;      /* Prevents clicking or selecting text */
+             user-select: none;         /* Prevents text highlighting */
+    }
+
+         #company-fields.disabled input {
+             background-color: #f0f0f0; /* Light gray background */
+             color: #888;               /* Dimmed text color */
+             border: 1px solid #ccc;    /* Faded border */
+             cursor: not-allowed;       /* Shows a 'block' icon on hover */
+    }
+
+        /* CRITICAL: Force the browser to use standard sRGB to avoid P3 color crashes */
+        :root { color-profile: sRGB; }
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+        
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            padding: 10px;
+            line-height: 1.4;
+            color: #000000;
+        }
+
+        .receipt {
+            max-width: 600px;
+            margin: 0 auto;
+            background: #ffffff;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        /* NEW: Prevent elements from being sliced in half between PDF pages */
+        .section, .drive-box, .sig-container, .acknowledgment {
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+
+        h1 { font-size: 18px; text-align: center; margin-bottom: 15px; border-bottom: 2px solid #333; padding-bottom: 10px; }
+        .section { margin-bottom: 15px; padding: 10px; background: #fafafa; border-radius: 5px; border: 1px solid #eeeeee; }
+        .section-title { font-weight: bold; font-size: 13px; margin-bottom: 8px; color: #333; border-bottom: 1px solid #ddd; }
+        
+        .field { margin-bottom: 8px; }
+        label { display: block; font-size: 11px; color: #666; margin-bottom: 2px; }
+        
+        input[type="text"], input[type="tel"], input[type="email"], 
+        input[type="date"], input[type="time"], select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #cccccc;
+            border-radius: 4px;
+            font-size: 16px;
+            background: #ffffff !important;
+            color: #000000 !important;
+        }
+
+        .drive-box { border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; border-radius: 4px; background: #fff; }
+        .drive-label { font-weight: bold; color: #0066cc; margin-bottom: 8px; font-size: 14px; }
+        
+        .cam-input-wrapper {
+            position: relative;
+            border: 2px dashed #0066cc;
+            border-radius: 4px;
+            background: #f0f7ff;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #0066cc;
+        }
+        .cam-input-hidden { position: absolute; width: 100%; height: 100%; opacity: 0; z-index: 10; cursor: pointer; }
+        .sn-preview { width: 100%; max-height: 250px; object-fit: contain; margin-top: 10px; display: none; border-radius: 4px; }
+        .clear-cam { display: none; margin-top: 5px; background: #ff4444; color: #fff; border: none; padding: 10px; border-radius: 4px; width: 100%; font-weight: bold; }
+
+        .sig-container { position: relative; background: #fff; border: 1px dashed #999; border-radius: 4px; margin-top: 5px; }
+        .signature-pad { width: 100%; height: 150px; display: block; touch-action: none; background: #fff; }
+        .clear-sig { position: absolute; top: 5px; right: 5px; background: #ff4444; color: #fff; border: none; padding: 5px 10px; font-size: 10px; border-radius: 3px; z-index: 20; }
+
+        .acknowledgment { background: #fff3cd; border: 1px solid #ffc107; padding: 10px; border-radius: 4px; font-size: 12px; margin: 15px 0; color: #856404; }
+        .btn { width: 100%; padding: 18px; background: #0066cc; color: #ffffff; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        
+        #recovery-disk-fields.disabled { opacity: 0.3; pointer-events: none; }
+        .row { display: flex; gap: 10px; }
+        .row .field { flex: 1; }
+
+        /* Hidden text fields that only appear during PDF generation */
+        .pdf-val { display: none; font-size: 14px; padding: 8px 0; color: #000; font-weight: 500; border-bottom: 1px solid #eee; }
+
+        /* Force height auto during print/PDF capture */
+        @media print {
+            .receipt { height: auto !important; overflow: visible !important; }
+        }
+    </style>
+</head>
+<body>
+    <div class="receipt" id="receipt-content">
+        <h1>💾 SG DATA RECOVERY-HDD COLLECTION RECEIPT</h1>
+        
+        <div class="section">
+            <div class="row">
+                <div class="field">
+                    <label>Date</label>
+                    <input type="date" id="date">
+                    <div class="pdf-val" id="val-date"></div>
+                </div>
+                <div class="field">
+                    <label>Time</label>
+                    <input type="time" id="time">
+                    <div class="pdf-val" id="val-time"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">👤 CLIENT INFO</div>
+            <div class="field">
+                <label>Full Name *</label>
+                <input type="text" id="clientName">
+                <div class="pdf-val" id="val-clientName"></div>
+            </div>
+            <div class="row">
+                <div class="field">
+                    <label>Phone *</label>
+                    <input type="tel" id="clientPhone">
+                    <div class="pdf-val" id="val-clientPhone"></div>
+                </div>
+                <div class="field">
+                    <label>Email</label>
+                    <input type="email" id="clientEmail">
+                    <div class="pdf-val" id="val-clientEmail"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">🏬 COMPANY INFO</div>
+            <div id="company-fields" class="disabled">
+            <div class="field">
+                <label>Company</label>
+                <input type="text" value="SG Data Recovery Pte Ltd" readonly>
+            </div>
+            <div class="row">
+	      	   <div class="field">
+                	<label>Email</label>
+	                <input type="text" value="sgdatarecovery121@gmail.com" readonly>
+        	   </div>
+	           <div class="field">
+        	        <label>Mobile</label>
+                	<input type="text" value="90882646" readonly>
+	           </div>
+	    </div>
+           </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">💾 DEVICES</div>
+            <div class="drive-box">
+                <div class="drive-label">FAULTY DISK #1</div>
+                <div class="cam-input-wrapper" id="wrapper-1">
+                    <span>📷 Tap to take S/N</span>
+                    <input type="file" class="cam-input-hidden" accept="image/*" capture="environment" onchange="handleImage(this, 1)">
+                </div>
+                <img id="preview-1" class="sn-preview">
+                <button type="button" id="clear-1" class="clear-cam" onclick="clearImage(1)">Retake Photo</button>
+            </div>
+            <div class="row">
+                    <div class="field">
+                        <label>Capacity</label>
+                        <input type="text" placeholder="1TB, 2TB, etc.">
+                    </div>
+                    <div class="field">
+                        <label>Brand/Model</label>
+                        <input type="text" placeholder="WD, Seagate, etc.">
+                    </div>
+            </div>
+            <div class="drive-box">
+                <div class="drive-label">RECOVERY DISK #2</div>
+                <div class="field">
+                    <label>Client has recovery disk?</label>
+                    <select id="has-recovery-disk" onchange="toggleRecovery(this.value)">
+                        <option value="no">No</option>
+                        <option value="yes">Yes</option>
+                    </select>
+                </div>
+                <div id="recovery-disk-fields" class="disabled">
+                    <div class="cam-input-wrapper" id="wrapper-2">
+                        <span>📷 Tap to take S/N</span>
+                        <input type="file" id="input-2" class="cam-input-hidden" accept="image/*" capture="environment" onchange="handleImage(this, 2)"                  
+                        disabled>
+                    </div>
+                    <img id="preview-2" class="sn-preview">
+                    <button type="button" id="clear-2" class="clear-cam" onclick="clearImage(2)">Retake Photo</button>
+            	<div class="row">
+                    <div class="field">
+                        <label>Capacity</label>
+                        <input type="text" placeholder="1TB, 2TB, etc.">
+                    </div>
+                    <div class="field">
+                        <label>Brand/Model</label>
+                        <input type="text" placeholder="WD, Seagate, etc.">
+                    </div>
+               </div>
+              </div>
+            </div>
+        </div>
+
+        <div class="acknowledgment">
+            <p><strong>✅ ACKNOWLEDGMENT:</strong></p>
+            <p style="margin-top: 10px;">I confirm that the hard drives listed above have been handed over to <strong>SG Data Recovery</strong>.</p>
+            <p style="margin-top: 10px;">I understand recovery is not guaranteed.</p>
+            <p style="margin-top: 10px;">If data recovery is possible, we shall inform you of the folders/files that are recoverable and provide a price quotation. We shall only begin the data recovery if you agree to our quotation.</p> 
+            <p style="margin-top: 10px;">Data recovery time is between 2 to 3 days.</p>
+            <p style="margin-top: 10px;"><strong>SG Data Recovery</strong> Terms & Conditions on Carousell's listing to apply.</p>
+
+            <label style="margin-top:10px; display: flex; align-items: center; gap: 8px;">
+                <input type="checkbox" id="terms" style="width: 20px; height: 20px;"> I agree to the terms & conditions.
+            </label>
+        </div>
+
+        <div class="section">
+            <div class="section-title">✍️ CLIENT SIGNATURE</div>
+            <div class="sig-container">
+                <canvas id="sig-canvas" class="signature-pad"></canvas>
+                <button type="button" class="clear-sig" onclick="clearSig()">Clear</button>
+            </div>
+        </div>
+
+        <button class="btn" id="save-btn" onclick="savePDF()">📥 SAVE AS PDF</button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script>
+        // 1. Initial Setup
+        window.onload = () => {
+            const now = new Date();
+            document.getElementById('date').value = now.toISOString().split('T')[0];
+            document.getElementById('time').value = now.toTimeString().slice(0, 5);
+            initSignature();
+        };
+
+        // 2. IMAGE HANDLING: Flatten P3 Color Space to sRGB using Canvas
+        function handleImage(input, id) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+                        
+                        // Resize to max width 1000px to keep PDF size small and stable
+                        const maxW = 1000;
+                        const scale = Math.min(1, maxW / img.width);
+                        canvas.width = img.width * scale;
+                        canvas.height = img.height * scale;
+
+                        // Drawing to canvas flattens the color profile to sRGB
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                        const preview = document.getElementById(`preview-${id}`);
+                        preview.src = canvas.toDataURL('image/jpeg', 0.8);
+                        preview.style.display = 'block';
+                        document.getElementById(`wrapper-${id}`).style.display = 'none';
+                        document.getElementById(`clear-${id}`).style.display = 'block';
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        function clearImage(id) {
+            document.getElementById(`preview-${id}`).style.display = 'none';
+            document.getElementById(`wrapper-${id}`).style.display = 'flex';
+            document.getElementById(`clear-${id}`).style.display = 'none';
+            document.querySelector(`#wrapper-${id} input`).value = '';
+        }
+
+        function toggleRecovery(val) {
+            const container = document.getElementById('recovery-disk-fields');
+            const inputs = container.querySelectorAll('input, button');
+            if (val === 'yes') {
+                container.classList.remove('disabled');
+                inputs.forEach(i => i.disabled = false);
+            } else {
+                container.classList.add('disabled');
+                inputs.forEach(i => i.disabled = true);
+                clearImage(2);
+            }
+        }
+
+        // 3. Signature Logic
+        let canvas, ctx, drawing = false;
+        function initSignature() {
+            canvas = document.getElementById('sig-canvas');
+            ctx = canvas.getContext('2d');
+            const ratio = window.devicePixelRatio || 1;
+            canvas.width = canvas.offsetWidth * ratio;
+            canvas.height = canvas.offsetHeight * ratio;
+            ctx.scale(ratio, ratio);
+            const getPos = (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const clientX = (e.touches ? e.touches[0].clientX : e.clientX);
+                const clientY = (e.touches ? e.touches[0].clientY : e.clientY);
+                return { x: clientX - rect.left, y: clientY - rect.top };
+            };
+            const start = (e) => { drawing = true; ctx.beginPath(); const p = getPos(e); ctx.moveTo(p.x, p.y); if(e.touches) e.preventDefault(); };
+            const move = (e) => { if(!drawing) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); if(e.touches) e.preventDefault(); };
+            const stop = () => drawing = false;
+            canvas.addEventListener('touchstart', start, {passive: false});
+            canvas.addEventListener('touchmove', move, {passive: false});
+            canvas.addEventListener('touchend', stop);
+            canvas.addEventListener('mousedown', start);
+            canvas.addEventListener('mousemove', move);
+            window.addEventListener('mouseup', stop);
+            ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.strokeStyle = '#000';
+        }
+        function clearSig() { ctx.clearRect(0, 0, canvas.width, canvas.height); }
+
+        // 4. Robust PDF Generation
+        async function savePDF() {
+            const btn = document.getElementById('save-btn');
+            const location = document.getElementById('location').value;
+            const terms = document.getElementById('terms').checked;
+
+            if (!location) return alert("Please select collection location");
+            if (!terms) return alert("Please agree to terms");
+
+            btn.innerText = "Processing...";
+            btn.disabled = true;
+
+            // Step A: Replace problematic input elements with plain text
+            const inputs = ['date', 'time', 'location', 'clientName', 'clientPhone', 'clientEmail'];
+            inputs.forEach(id => {
+                const el = document.getElementById(id);
+                const valEl = document.getElementById('val-' + id);
+                valEl.innerText = el.value || "N/A";
+                el.style.display = 'none';
+                valEl.style.display = 'block';
+            });
+
+            // Step B: Hide elements we don't want in the PDF
+            btn.style.display = 'none';
+            document.querySelectorAll('.clear-sig, .clear-cam').forEach(el => el.style.display = 'none');
+
+            const element = document.getElementById('receipt-content');
+            
+            // NEW: Enhanced PDF options for multi-page support
+            const opt = {
+                margin: [0.3, 0.2], // [top/bottom, left/right]
+                filename: `SG_Data_Receipt_${Date.now()}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { 
+                    scale: 2, 
+                    useCORS: true, 
+                    backgroundColor: '#ffffff',
+                    scrollY: 0,
+                    windowWidth: element.scrollWidth,
+                    logging: false
+                },
+                jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' },
+                // CRITICAL: Force the library to create new pages based on content length
+                pagebreak: { mode: ['css', 'legacy'] }
+            };
+
+            try {
+                await html2pdf().set(opt).from(element).save();
+            } catch (err) {
+                alert("PDF Error: " + err.message);
+            } finally {
+                // Restore UI
+                inputs.forEach(id => {
+                    document.getElementById(id).style.display = 'block';
+                    document.getElementById('val-' + id).style.display = 'none';
+                });
+                btn.style.display = 'block';
+                btn.disabled = false;
+                btn.innerText = "📥 SAVE AS PDF";
+                // Restore clear buttons if photos exist
+                if(document.getElementById('preview-1').style.display === 'block') document.getElementById('clear-1').style.display = 'block';
+                if(document.getElementById('preview-2').style.display === 'block') document.getElementById('clear-2').style.display = 'block';
+            }
+        }
+    </script>
+</body>
+</html>
